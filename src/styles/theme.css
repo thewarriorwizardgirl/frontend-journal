@@ -1,0 +1,62 @@
+:root {
+  color-scheme: light;
+  --color-paper: #fffefa;
+  --color-ink: #181818;
+  --color-scarlet: #b5211c;
+  --color-scarlet-dark: #941b18;
+  --color-muted: #797772;
+  --color-line: #e7e3dc;
+  --color-card: #ffffff;
+  --font-sans: "DM Sans", sans-serif;
+  --font-display: "Manrope", sans-serif;
+  --rail-width: 76px;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-paper: #181818;
+  --color-ink: #f5f2ec;
+  --color-muted: #aaa59d;
+  --color-line: #3c3935;
+  --color-card: #22201d;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  background: var(--color-paper);
+}
+
+body {
+  margin: 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--color-scarlet);
+  outline-offset: 3px;
+}
+
+::selection {
+  color: white;
+  background: var(--color-scarlet);
+}
