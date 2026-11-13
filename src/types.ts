@@ -10,18 +10,27 @@ export type Post = {
   excerpt: string;
 };
 
-export type Article = {
+export type MediaReference = {
+  url: string;
+  publicId?: string;
+};
+
+export type PublishedPost = {
+  _id: string;
   title: string;
+  slug: string;
   subtitle?: string;
   excerpt: string;
-  category: string;
+  category: PostCategory;
   tags: string[];
-  publishedAt: string;
-  updatedAt?: string;
+  publishedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
   location?: string;
-  readingTimeMinutes?: string;
-  wordCount?: string | null;
-  coverImage?: string;
-  coverVideo?: string;
+  readingTimeMinutes?: number | null;
+  wordCount?: number | null;
+  coverImage?: MediaReference | null;
+  coverVideo?: MediaReference | null;
   content: string;
+  views: number;
 };

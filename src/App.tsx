@@ -13,24 +13,25 @@ import NavRail from "./components/NavRail";
 import PostCard from "./components/PostCard";
 import PoemFeature from "./components/PoemFeature";
 import JournalContactCard from "./components/JournalContactCard";
-import { categories, getPostPath, posts } from "./data/posts";
+import { fetchPublishedPost, fetchPublishedPosts } from "./data/api";
+import { categories, getPostPath } from "./data/posts";
 import type { Category } from "./data/posts";
-import type { Article } from "./types";
+import type { PublishedPost } from "./types";
 
 const PostPage = lazy(() => import("./components/PostPage"));
-const articleModules = import.meta.glob<{ default: Article }>("./data/posts/*.json");
 
 type ArticleState =
-  | { slug: null | string; status: "idle" | "loading" | "error"; article: null }
-  | { slug: string; status: "ready"; article: Article };
+  | { slug: null | string; status: "idle" | "loading"; post: null }
+  | { slug: string; status: "error"; post: null; message: string; notFound: boolean }
+  | { slug: string; status: "ready"; post: PublishedPost };
 
 export default function App() {
   const path = window.location.pathname;
   const isContactPage = path === "/contact" || path === "/contact/";
   const activeSlug = path.startsWith("/posts/") ? path.split("/")[2] : null;
-  const activePost = path.startsWith("/posts/")
-    ? posts.find((post) => getPostSlug(post) === activeSlug)
-    : null;
+  const [posts, setPosts] = useState<PublishedPost[]>([]);
+  const [postsStatus, setPostsStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [postsError, setPostsError] = useState("");
   const [activeCategory, setActiveCategory] = useState<Category>("All posts");
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
@@ -38,7 +39,7 @@ export default function App() {
   const [articleState, setArticleState] = useState<ArticleState>({
     slug: null,
     status: "idle",
-    article: null,
+    post: null,
   });
   const searchRef = useRef<HTMLInputElement>(null);
   const categoryRef = useRef<HTMLElement>(null);
@@ -46,7 +47,25 @@ export default function App() {
   const articleResult: ArticleState =
     activeSlug && articleState.slug === activeSlug
       ? articleState
-      : { slug: activeSlug, status: "loading", article: null };
+      : { slug: activeSlug, status: "loading", post: null };
+  const activePost =
+    articleResult.status === "ready" ? articleResult.post : null;
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchPublishedPosts(controller.signal)
+      .then((loadedPosts) => {
+        setPosts(loadedPosts);
+        setPostsStatus("ready");
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setPostsError(error instanceof Error ? error.message : "Could not load journal posts.");
+        setPostsStatus("error");
+      });
+
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     document.documentElement.dataset.theme = isDarkTheme ? "dark" : "light";
@@ -55,36 +74,38 @@ export default function App() {
       : activePost
         ? `${activePost.title} — The Warrior Wizard Girl`
         : "Journal — The Warrior Wizard Girl";
-  }, [isDarkTheme, isContactPage, activePost]);
+  }, [isDarkTheme, isContactPage, activePost?.title]);
 
   useEffect(() => {
-    if (!activePost) return undefined;
-    const slug = getPostSlug(activePost);
-    let cancelled = false;
-
-    setArticleState({ slug, status: "loading", article: null });
-    const loadArticle = articleModules[`./data/posts/${slug}.json`];
-    if (!loadArticle) {
-      setArticleState({ slug, status: "error", article: null });
-      console.error(`Unable to load journal post "${slug}": article file not found.`);
+    if (!activeSlug) {
+      setArticleState({ slug: null, status: "idle", post: null });
       return undefined;
     }
 
-    loadArticle()
-      .then(({ default: article }) => {
-        if (cancelled) return;
-        setArticleState({ slug, status: "ready", article });
+    const controller = new AbortController();
+    setArticleState({ slug: activeSlug, status: "loading", post: null });
+    fetchPublishedPost(activeSlug, controller.signal)
+      .then((post) => {
+        setArticleState({ slug: activeSlug, status: "ready", post });
       })
       .catch((error) => {
-        if (cancelled) return;
-        console.error(`Unable to load journal post "${slug}".`, error);
-        setArticleState({ slug, status: "error", article: null });
+        if (controller.signal.aborted) return;
+        const notFound =
+          typeof error === "object" &&
+          error !== null &&
+          "status" in error &&
+          error.status === 404;
+        setArticleState({
+          slug: activeSlug,
+          status: "error",
+          post: null,
+          notFound,
+          message: error instanceof Error ? error.message : "Could not load this story.",
+        });
       });
 
-    return () => {
-      cancelled = true;
-    };
-  }, [activePost?.title]);
+    return () => controller.abort();
+  }, [activeSlug]);
 
   useEffect(() => {
     if (window.location.hash === "#search") {
@@ -103,15 +124,17 @@ export default function App() {
 
   const visiblePosts = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
-    return posts.filter((post, index) => {
+    return posts.filter((post) => {
       const matchesCategory =
         activeCategory === "All posts" || post.category === activeCategory;
       const matchesSearch =
         !query ||
-        `${post.title} ${post.category} ${post.excerpt}`.toLowerCase().includes(query);
+        `${post.title} ${post.category} ${post.excerpt} ${post.tags.join(" ")}`
+          .toLowerCase()
+          .includes(query);
       return matchesCategory && matchesSearch;
     });
-  }, [activeCategory, searchTerm]);
+  }, [posts, activeCategory, searchTerm]);
 
   function focusSearch() {
     searchRef.current?.focus();
@@ -168,14 +191,15 @@ export default function App() {
   if (path.startsWith("/posts/")) {
     return (
       <>
-        {!activePost ? (
+        {articleResult.status === "error" && articleResult.notFound ? (
           <main className="not-found">
             <h1>Story not found</h1>
             <a href="/">Back to the journal</a>
           </main>
         ) : articleResult.status === "error" ? (
           <main className="not-found">
-            <h1>Article content unavailable</h1>
+            <h1>Story unavailable</h1>
+            <p>{articleResult.message}</p>
             <a href="/">Back to the journal</a>
           </main>
         ) : articleResult.status !== "ready" ? (
@@ -190,7 +214,7 @@ export default function App() {
               </main>
             }
           >
-            <PostPage post={activePost} article={articleResult.article} />
+            <PostPage post={articleResult.post} relatedPosts={posts} />
           </Suspense>
         )}
         <NavRail
@@ -240,15 +264,30 @@ export default function App() {
               <span className="post-count">
                 {searchTerm || activeCategory !== "All posts"
                   ? `${visiblePosts.length} ${visiblePosts.length === 1 ? "story" : "stories"}`
-                  : "35 dispatches"}
+                  : postsStatus === "loading"
+                    ? "Loading stories"
+                    : `${posts.length} dispatches`}
               </span>
             </div>
 
             <div className="post-grid">
-              {visiblePosts.length > 0 ? (
+              {postsStatus === "loading" ? (
+                <p className="post-loading" aria-live="polite">Gathering stories from the journal…</p>
+              ) : postsStatus === "error" ? (
+                <div className="journal-api-error" role="alert">
+                  <h3>Journal posts are unavailable</h3>
+                  <p>{postsError}</p>
+                  <button
+                    type="button"
+                    onClick={() => window.location.reload()}
+                  >
+                    Try again
+                  </button>
+                </div>
+              ) : visiblePosts.length > 0 ? (
                 visiblePosts.map((post) => (
                   <PostCard
-                    key={post.title}
+                    key={post._id}
                     post={post}
                   />
                 ))
@@ -298,7 +337,7 @@ export default function App() {
                 <a
                   className="sidebar-link"
                   href={getPostPath(post)}
-                  key={post.title}
+                  key={post._id}
                 >
                   <span>{post.title}</span>
                   <span>0{index + 1}</span>
@@ -311,7 +350,7 @@ export default function App() {
 
         <footer className="site-footer">
           <strong>The Warrior Wizard Girl</strong>
-          <span>35 dispatches · Stories from here and there</span>
+          <span>{posts.length} dispatches · Stories from here and there</span>
           <a
             className="inline-flex items-center gap-1.5 text-ink no-underline hover:text-scarlet"
             href="https://thewarriorwizardgirl.com/"
@@ -334,13 +373,4 @@ export default function App() {
       />
     </>
   );
-}
-
-function getPostSlug(post: Pick<(typeof posts)[number], "title">) {
-  return post.title
-    .normalize("NFKD")
-    .replace(/[^\w\s-]/g, "")
-    .trim()
-    .toLowerCase()
-    .replace(/[\s_-]+/g, "-");
 }

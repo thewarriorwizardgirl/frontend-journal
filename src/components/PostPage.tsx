@@ -1,22 +1,22 @@
 import React from "react";
 import { ArrowLeft, ArrowUpRight, CalendarDays, Clock3, MapPin } from "lucide-react";
-import { getPostPath, posts } from "../data/posts";
+import { getPostPath } from "../data/posts";
 import BrandMark from "./BrandMark";
 import PostContent from "./PostContent";
 import JournalContactCard from "./JournalContactCard";
-import type { Article, Post } from "../types";
+import type { PublishedPost } from "../types";
 
 type PostPageProps = {
-  post: Post;
-  article: Article;
+  post: PublishedPost;
+  relatedPosts: PublishedPost[];
 };
 
-export default function PostPage({ post, article }: PostPageProps) {
-  const relatedPosts = posts
-    .filter((candidate) => candidate.category === post.category && candidate !== post)
+export default function PostPage({ post, relatedPosts: allPosts }: PostPageProps) {
+  const relatedPosts = allPosts
+    .filter((candidate) => candidate.category === post.category && candidate._id !== post._id)
     .slice(0, 3);
-  const coverVideo = article.coverVideo || "";
-  const coverImage = article.coverImage || post.image;
+  const coverVideo = post.coverVideo?.url || "";
+  const coverImage = post.coverImage?.url || "";
 
   return (
     <div className="page-shell" id="top">
@@ -42,27 +42,28 @@ export default function PostPage({ post, article }: PostPageProps) {
       </header>
       <main className="content-grid post-page-grid">
         <article className="post-article">
-          {(article.publishedAt || article.location || article.readingTimeMinutes) && (
+          {(post.publishedAt || post.location || post.readingTimeMinutes) && (
             <div className="post-article-meta" aria-label="Post details">
-              {article.publishedAt && (
+              {post.publishedAt && (
                 <span>
                   <CalendarDays size={15} aria-hidden="true" />
-                  Published {formatDate(article.publishedAt)}
-                  {article.updatedAt && article.updatedAt !== article.publishedAt && (
-                    <> · Updated {formatDate(article.updatedAt)}</>
+                  Published {formatDate(post.publishedAt)}
+                  {post.updatedAt !== post.createdAt &&
+                    post.updatedAt.slice(0, 10) !== post.publishedAt.slice(0, 10) && (
+                    <> · Updated {formatDate(post.updatedAt)}</>
                   )}
                 </span>
               )}
-              {article.location && (
+              {post.location && (
                 <span>
                   <MapPin size={15} aria-hidden="true" />
-                  {article.location}
+                  {post.location}
                 </span>
               )}
-              {article.readingTimeMinutes && (
+              {post.readingTimeMinutes && (
                 <span>
                   <Clock3 size={15} aria-hidden="true" />
-                  {article.readingTimeMinutes} min read
+                  {post.readingTimeMinutes} min read
                 </span>
               )}
             </div>
@@ -80,19 +81,19 @@ export default function PostPage({ post, article }: PostPageProps) {
           ) : coverImage ? (
             <img className="post-article-image" src={coverImage} alt="" />
           ) : null}
-          <PostContent content={article.content} />
+          <PostContent content={post.content} />
         </article>
         <aside className="post-sidebar">
           <a className="back-to-journal" href="/">
             <ArrowLeft size={15} aria-hidden="true" /> All journal entries
           </a>
           <section className="post-details">
-            <span className="eyebrow">{article.category}</span>
-            <h1>{article.title || post.title}</h1>
-            {article.subtitle && <p className="post-subtitle">{article.subtitle}</p>}
-            {article.tags?.length > 0 && (
+            <span className="eyebrow">{post.category}</span>
+            <h1>{post.title}</h1>
+            {post.subtitle && <p className="post-subtitle">{post.subtitle}</p>}
+            {post.tags.length > 0 && (
               <div className="post-tag-list">
-                {article.tags.map((tag) => <span key={tag}>#{tag}</span>)}
+                {post.tags.map((tag) => <span key={tag}>#{tag}</span>)}
               </div>
             )}
           </section>
@@ -116,7 +117,7 @@ export default function PostPage({ post, article }: PostPageProps) {
       </main>
       <footer className="site-footer">
         <strong>The Warrior Wizard Girl</strong>
-        <span>35 dispatches · Stories from here and there</span>
+        <span>Stories from here and there</span>
         <a href="/">Back to all posts</a>
       </footer>
     </div>
@@ -129,5 +130,5 @@ function formatDate(date: string) {
     month: "long",
     year: "numeric",
     timeZone: "UTC",
-  }).format(new Date(`${date}T00:00:00Z`));
+  }).format(new Date(date));
 }

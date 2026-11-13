@@ -594,6 +594,39 @@
   text-align: center;
 }
 
+.post-grid > .post-loading,
+.journal-api-error {
+  grid-column: 1 / -1;
+}
+
+.journal-api-error {
+  padding: 30px 20px;
+  border: 1px solid var(--color-line);
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.journal-api-error h3 {
+  margin: 0 0 8px;
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: 19px;
+}
+
+.journal-api-error p {
+  margin: 0 0 12px;
+  font-size: 12px;
+}
+
+.journal-api-error button {
+  padding: 8px 13px;
+  border: 0;
+  background: var(--color-scarlet);
+  color: white;
+  cursor: pointer;
+  font-size: 11px;
+}
+
 .site-footer {
   display: flex;
   justify-content: space-between;

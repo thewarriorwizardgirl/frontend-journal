@@ -19,8 +19,8 @@ export const categories = ["All posts", "Travel", "Life", "Stories", "Poetry"] a
 
 export type Category = (typeof categories)[number];
 
-export function getPostPath(post: Pick<Post, "title">) {
-  const slug = post.title
+export function getPostPath(post: { title: string; slug?: string }) {
+  const slug = post.slug || post.title
     .normalize("NFKD")
     .replace(/[^\w\s-]/g, "")
     .trim()

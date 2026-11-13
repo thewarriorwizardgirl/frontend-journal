@@ -1,20 +1,18 @@
 import React from "react";
 import { ArrowUpRight, Eye, Clock3 } from "lucide-react";
 import { getPostPath } from "../data/posts";
-import postPreviews from "../data/postPreviews.json";
-import type { Post } from "../types";
-
-const postPreviewMap = new Map(Object.entries(postPreviews));
+import type { PublishedPost } from "../types";
 
 type PostCardProps = {
-  post: Post;
+  post: PublishedPost;
 };
 
 export default function PostCard({ post }: PostCardProps) {
-  const slug = getPostPath(post).split("/").pop();
-  const content = slug ? postPreviewMap.get(slug) : undefined;
-  const video = content?.coverVideo || "";
-  const cover = content?.coverImage || post.image;
+  const video = post.coverVideo?.url || "";
+  const cover = post.coverImage?.url || "";
+  const readingTime = post.readingTimeMinutes
+    ? `${post.readingTimeMinutes} min read`
+    : "Journal entry";
 
   return (
     <article className="post-card">
@@ -50,7 +48,7 @@ export default function PostCard({ post }: PostCardProps) {
           <div className="post-meta">
             <span className="inline-flex items-center gap-1.5">
               <Clock3 size={13} aria-hidden="true" />
-              {post.readTime}
+              {readingTime}
             </span>
             <span className="inline-flex items-center gap-1.5">
               <Eye size={14} aria-hidden="true" />
